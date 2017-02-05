@@ -1,0 +1,4 @@
+.sshcfg
+.vagrant
+raspbian.img
+vars.sh

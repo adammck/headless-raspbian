@@ -1,0 +1,84 @@
+#!/bin/bash -eux
+
+#
+# THIS IS RUN INSIDE THE VAGRANT BOX
+#
+
+if [ ! -f /vagrant/vars.sh ]; then
+	echo "Error: /vagrant/vars.sh does not exist"
+	exit 1
+fi
+
+# Load ENV vars.
+source /vagrant/vars.sh
+
+# Install dependencies
+apt-get install -y curl unzip kpartx
+
+# Download latest Raspbian lite
+if [ ! -f /tmp/raspbian.zip ]; then
+	curl -fsSLo /tmp/raspbian.zip https://downloads.raspberrypi.org/raspbian_lite_latest
+fi
+
+# Delete any image created on previous run
+if [ -f /tmp/raspbian.img ]; then
+	rm /tmp/raspbian.img
+fi
+
+# Unpack clean disk image
+pushd /tmp
+	unzip raspbian.zip
+	mv *-raspbian-*-lite.img raspbian.img
+popd
+
+# Mount the two partitions
+pushd /mnt
+	mkdir -p p1 p2
+	kpartx -avs /tmp/raspbian.img
+	if ! mount | grep -q /dev/mapper/loop0p1; then mount -o rw -t vfat /dev/mapper/loop0p1 /mnt/p1; fi
+	if ! mount | grep -q /dev/mapper/loop0p2; then mount -o rw -t ext4 /dev/mapper/loop0p2 /mnt/p2; fi
+popd
+
+# Enable SSH
+# Note: No owner, because vfat
+pushd /mnt/p1
+	touch ssh
+popd
+
+# Add SSH pubkeys
+if [ -z ${GITHUB_USERNAME+x} ]; then
+	echo "Warning: GITHUB_USERNAME is not set"
+else
+	pushd /mnt/p2/home/pi
+		mkdir -p .ssh
+		chown -R 1000:1000 .ssh
+		chmod 700 .ssh
+		curl -sS https://github.com/$GITHUB_USERNAME.keys > .ssh/authorized_keys
+		chown 1000:1000 .ssh/authorized_keys
+		chmod 600 .ssh/authorized_keys
+	popd
+fi
+
+# Configure wifi
+if [ -z ${WIFI_SSID+x} ]; then
+	echo "Warning: WIFI_SSID is not set"
+else
+	if ! grep -q $WIFI_SSID /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf; then
+		cat <<-EOF > /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf
+			ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+			update_config=1
+			network={
+			  ssid="$WIFI_SSID"
+			  psk="$WIFI_PSK"
+			}
+			EOF
+	fi
+fi
+
+# Ensure that writes made it to disk
+sync
+
+# Unmount disk image
+umount /mnt/p1
+umount /mnt/p2
+kpartx -dv /tmp/raspbian.img

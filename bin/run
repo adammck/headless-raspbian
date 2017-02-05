@@ -1,0 +1,14 @@
+#!/bin/bash -eux
+
+#
+# THIS IS RUN OUTSIDE THE VAGRANT BOX
+#
+
+vagrant up --provision
+
+# Fetch image via SCP, because 
+vagrant ssh-config > .sshcfg
+scp -F .sshcfg default:/tmp/raspbian.img .
+rm .sshcfg
+
+vagrant halt

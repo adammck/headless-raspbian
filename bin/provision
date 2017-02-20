@@ -40,6 +40,15 @@ pushd /mnt
 popd
 
 # Enable SSH
+# The release notes[1] say:
+#	[1] http://downloads.raspberrypi.org/raspbian/release_notes.txt
+#
+# > 2016-11-25:
+# > SSH disabled by default; can be enabled by creating a file with name "ssh" in boot partition
+#
+# We could enable the service ourselves, but it seems sensible to stick with
+# whatever they're recommending, in case they change the effects.
+#
 # Note: No owner, because vfat
 pushd /mnt/p1
 	touch ssh

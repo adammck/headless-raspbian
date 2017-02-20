@@ -54,6 +54,9 @@ pushd /mnt/p1
 	touch ssh
 popd
 
+# Disable password authentication
+sed -i 's/^#*\(PasswordAuthentication \)[a-z]*$/\1no/g' /mnt/p2/etc/ssh/sshd_config
+
 # Add SSH pubkeys
 if [ -z ${GITHUB_USERNAME+x} ]; then
 	echo "Warning: GITHUB_USERNAME is not set"

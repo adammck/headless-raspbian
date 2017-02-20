@@ -7,6 +7,7 @@ the official ones. The only differences are:
 * Password authentication is disabled
 * SSH pubkeys are configured (via GitHub)
 * Wifi SSID and password is set
+* Hostname is set
 
 This is just enough to enable me to get the thing booted up and ready to
 provision over SSH with Ansible or whatever. I know that I should be creating

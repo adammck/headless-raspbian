@@ -87,6 +87,14 @@ else
 	fi
 fi
 
+# Change hostname
+if [ -z ${NEW_HOSTNAME+x} ]; then
+	echo "Warning: NEW_HOSTNAME is not set"
+else
+	sed -i "s/^\(127.0.1.1\s*\).*$/\1$NEW_HOSTNAME/g" /mnt/p2/etc/hosts
+	echo $NEW_HOSTNAME > /mnt/p2/etc/hostname
+fi
+
 # Ensure that writes made it to disk
 sync
 

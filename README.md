@@ -9,15 +9,11 @@ the official ones. The only differences are:
 * Wifi SSID and password is set
 * Hostname is set
 
-This is just enough to enable me to get the thing booted up and ready to
-provision over SSH with Ansible or whatever. I know that I should be creating
-proper images with pi-gen, but this seems simpler to keep up to date.
+This is just enough to get the thing booted up and ready to provision over SSH
+with Ansible or whatever. I know that I should be building proper images with
+pi-gen, but this seems simpler to keep up to date.
 
 This is only tested on my Mac, but it might work wherever Vagrant does.
-
-## TODO
-
-- [ ] Push IP address at boot
 
 ## Usage
 

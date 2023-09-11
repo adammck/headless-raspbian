@@ -8,7 +8,7 @@ vagrant up --provision
 
 # Fetch image via SCP, because 
 vagrant ssh-config > .sshcfg
-scp -F .sshcfg default:/tmp/raspbian.img .
+scp -F .sshcfg default:/tmp/raspios.img .
 rm .sshcfg
 
 vagrant halt

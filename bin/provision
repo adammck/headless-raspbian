@@ -15,26 +15,25 @@ source /vagrant/vars.sh
 # Install dependencies
 apt-get install -y curl unzip kpartx
 
-# Download latest Raspbian lite
-if [ ! -f /tmp/raspbian.zip ]; then
-	curl -fsSLo /tmp/raspbian.zip https://downloads.raspberrypi.org/raspbian_lite_latest
+# Download disk image.
+if [ ! -f /tmp/raspios.zip ]; then
+	curl -fsSLo /tmp/raspios.img.xz $RASPIOS_IMAGE
 fi
 
-# Delete any image created on previous run
-if [ -f /tmp/raspbian.img ]; then
-	rm /tmp/raspbian.img
+# Delete any image created on previous run.
+if [ -f /tmp/raspios.img ]; then
+	rm /tmp/raspios.img
 fi
 
-# Unpack clean disk image
+# Unpack disk image.
 pushd /tmp
-	unzip raspbian.zip
-	mv *-raspbian-*-lite.img raspbian.img
+	unxz /tmp/raspios.img.xz
 popd
 
 # Mount the two partitions
 pushd /mnt
 	mkdir -p p1 p2
-	kpartx -avs /tmp/raspbian.img
+	kpartx -avs /tmp/raspios.img
 	if ! mount | grep -q /dev/mapper/loop0p1; then mount -o rw -t vfat /dev/mapper/loop0p1 /mnt/p1; fi
 	if ! mount | grep -q /dev/mapper/loop0p2; then mount -o rw -t ext4 /dev/mapper/loop0p2 /mnt/p2; fi
 popd
@@ -101,4 +100,4 @@ sync
 # Unmount disk image
 umount /mnt/p1
 umount /mnt/p2
-kpartx -dv /tmp/raspbian.img
+kpartx -dv /tmp/raspios.img

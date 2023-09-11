@@ -1,4 +1,4 @@
 .sshcfg
 .vagrant
-raspbian.img
+raspios.img
 vars.sh

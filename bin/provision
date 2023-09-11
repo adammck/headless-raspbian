@@ -12,11 +12,11 @@ fi
 # Load ENV vars.
 source /vagrant/vars.sh
 
-# Install dependencies
-apt-get install -y curl unzip kpartx
+# Install dependencies.
+apt-get install -y curl kpartx
 
 # Download disk image.
-if [ ! -f /tmp/raspios.zip ]; then
+if [ ! -f /tmp/raspios.img.xz ]; then
 	curl -fsSLo /tmp/raspios.img.xz $RASPIOS_IMAGE
 fi
 
@@ -30,7 +30,7 @@ pushd /tmp
 	unxz /tmp/raspios.img.xz
 popd
 
-# Mount the two partitions
+# Mount the two partitions.
 pushd /mnt
 	mkdir -p p1 p2
 	kpartx -avs /tmp/raspios.img
@@ -38,25 +38,84 @@ pushd /mnt
 	if ! mount | grep -q /dev/mapper/loop0p2; then mount -o rw -t ext4 /dev/mapper/loop0p2 /mnt/p2; fi
 popd
 
-# Enable SSH
-# The release notes[1] say:
-#	[1] http://downloads.raspberrypi.org/raspbian/release_notes.txt
-#
-# > 2016-11-25:
-# > SSH disabled by default; can be enabled by creating a file with name "ssh" in boot partition
-#
-# We could enable the service ourselves, but it seems sensible to stick with
-# whatever they're recommending, in case they change the effects.
-#
-# Note: No owner, because vfat
-pushd /mnt/p1
-	touch ssh
-popd
 
-# Disable password authentication
+
+
+#
+# 1. NETWORK -------------------------------------------------------------------
+#
+
+# Change hostname.
+if [ -z ${NEW_HOSTNAME+x} ]; then
+	echo "Warning: NEW_HOSTNAME is not set"
+else
+	sed -i "s/^\(127.0.1.1\s*\).*$/\1$NEW_HOSTNAME/g" /mnt/p2/etc/hosts
+	echo $NEW_HOSTNAME > /mnt/p2/etc/hostname
+fi
+
+# Configure wifi.
+if [ -z ${WIFI_SSID+x} ]; then
+	echo "Warning: WIFI_SSID is not set"
+else
+	if ! grep -q $WIFI_SSID /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf; then
+		cat <<-EOF > /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf
+			ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+			country=US
+			update_config=1
+
+			network={
+			  ssid="$WIFI_SSID"
+			  psk="$WIFI_PSK"
+			}
+			EOF
+	fi
+fi
+
+# Disable copying wpa_supplicant from boot partition.
+#
+# This is the same as:
+#   systemctl disable raspberrypi-net-mods.service
+#
+rm /mnt/p2/lib/systemd/system/raspberrypi-net-mods.service
+
+# Configure rfkill to not block wifi.
+echo 0 > "/mnt/p2/var/lib/systemd/rfkill/platform-3f300000.mmcnr:wlan"
+echo 0 > "/mnt/p2/var/lib/systemd/rfkill/platform-fe300000.mmcnr:wlan"
+
+
+
+
+#
+# 2. SSH ACCESS ----------------------------------------------------------------
+#
+
+# Disable automatic user creation. The docs indicate that we need this, but in
+# pracitce the pi user already seems to be set up. Maybe it will stop working
+# one day.
+#
+# This is the same as:
+#   systemctl disable userconfig.service
+#
+rm /mnt/p2/lib/systemd/system/userconfig.service
+
+# Enable SSH.
+#
+# This is the same as:
+#   systemctl enable ssh.service
+#
+ln -s /lib/systemd/system/ssh.service /mnt/p2/etc/systemd/system/multi-user.target.wants/ssh.service
+
+# Disable enabling SSH via boot partition.
+#
+# This is the same as:
+#   systemctl disable raspberrypi-net-mods.service
+#
+rm /mnt/p2/lib/systemd/system/sshswitch.service
+
+# Disable password authentication.
 sed -i 's/^#*\(PasswordAuthentication \)[a-z]*$/\1no/g' /mnt/p2/etc/ssh/sshd_config
 
-# Add SSH pubkeys
+# Add SSH pubkeys to default user (pi).
 if [ -z ${GITHUB_USERNAME+x} ]; then
 	echo "Warning: GITHUB_USERNAME is not set"
 else
@@ -70,34 +129,21 @@ else
 	popd
 fi
 
-# Configure wifi
-if [ -z ${WIFI_SSID+x} ]; then
-	echo "Warning: WIFI_SSID is not set"
-else
-	if ! grep -q $WIFI_SSID /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf; then
-		cat <<-EOF > /mnt/p2/etc/wpa_supplicant/wpa_supplicant.conf
-			ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-			update_config=1
-			network={
-			  ssid="$WIFI_SSID"
-			  psk="$WIFI_PSK"
-			}
-			EOF
-	fi
-fi
+# Remove SSH banner:
+# > Please note that SSH may not work until a valid user has been set up.
+rm /mnt/p2/etc/ssh/sshd_config.d/rename_user.conf
 
-# Change hostname
-if [ -z ${NEW_HOSTNAME+x} ]; then
-	echo "Warning: NEW_HOSTNAME is not set"
-else
-	sed -i "s/^\(127.0.1.1\s*\).*$/\1$NEW_HOSTNAME/g" /mnt/p2/etc/hosts
-	echo $NEW_HOSTNAME > /mnt/p2/etc/hostname
-fi
 
-# Ensure that writes made it to disk
+
+
+#
+# 3. CLEANUP -------------------------------------------------------------------
+#
+
+# Ensure that writes made it to disk.
 sync
 
-# Unmount disk image
+# Unmount disk image.
 umount /mnt/p1
 umount /mnt/p2
 kpartx -dv /tmp/raspios.img

@@ -3,11 +3,11 @@
 This is a tool to create headless Raspbian images by downloading and patching
 the official ones. The only differences are:
 
-* SSH is enabled
-* Password authentication is disabled
-* SSH pubkeys are configured (via GitHub)
-* Wifi SSID and password is set
 * Hostname is set
+* Wifi is set up
+* SSH is enabled
+* SSH pubkeys are configured (via GitHub)
+* Password authentication is disabled
 
 This is just enough to get the thing booted up and ready to provision over SSH
 with Ansible or whatever. I know that I should be building proper images with

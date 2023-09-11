@@ -23,6 +23,9 @@ This is only tested on my Mac, but it might work wherever Vagrant does.
     vi vars.sh
     bin/run
 
+Once the image is built, one can flash it to a micro SD card using a tool like
+[Etcher](https://etcher.balena.io).
+
 ## License
 
 MIT.
